@@ -1,1 +1,1 @@
-# A-Map-Solver
+# A Star Map Solver
