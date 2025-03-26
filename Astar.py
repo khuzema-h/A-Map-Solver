@@ -16,14 +16,12 @@ width_scale = map_width / 180
 height_scale = map_height / 50
 
 # Create a grid for visualization
-x = np.linspace(0, map_width, 1000)  # Increased resolution for better quality
+x = np.linspace(0, map_width, 1000)
 y = np.linspace(0, map_height, 1000)
 X, Y = np.meshgrid(x, y)
 
-# Define the shapes using semi-algebraic models with scaled coordinates
+# Define obstacle shapes
 def shape_E(x, y):
-    # Original: (10, 10) to (23, 35)
-    # Scaled coordinates
     vertical = (10*width_scale <= x) & (x <= 15*width_scale) & (10*height_scale <= y) & (y <= 35*height_scale)
     top_horizontal = (10*width_scale <= x) & (x <= 23*width_scale) & (30*height_scale <= y) & (y <= 35*height_scale)
     middle_horizontal = (10*width_scale <= x) & (x <= 23*width_scale) & (20*height_scale <= y) & (y <= 25*height_scale)
@@ -31,7 +29,6 @@ def shape_E(x, y):
     return vertical | top_horizontal | middle_horizontal | bottom_horizontal
 
 def shape_N(x, y):
-    # Original: (28, 10) to (43, 35)
     left_vertical = (28*width_scale <= x) & (x <= 33*width_scale) & (10*height_scale <= y) & (y <= 35*height_scale)
     diagonal = (y >= -2.5*height_scale/width_scale * (x - 28*width_scale) + 35*height_scale) & \
                (y <= -2.5*height_scale/width_scale * (x - 33*width_scale) + 35*height_scale) & \
@@ -40,13 +37,11 @@ def shape_N(x, y):
     return left_vertical | diagonal | right_vertical
 
 def shape_P(x, y):
-    # Original: (48, 10) to (59, 35)
     vertical = (48*width_scale <= x) & (x <= 53*width_scale) & (10*height_scale <= y) & (y <= 35*height_scale)
     semi_circle = ((x - 53*width_scale)**2 + (y - 29.75*height_scale)**2 <= (8*width_scale)**2) & (x >= 53*width_scale)
     return vertical | semi_circle
 
 def shape_M(x, y):
-    # Original: (64, 10) to (92, 35)
     left_vertical = (64*width_scale <= x) & (x <= 69*width_scale) & (10*height_scale <= y) & (y <= 35*height_scale)
     diagonal = (y >= -2.5*height_scale/width_scale * (x - 64*width_scale) + 35*height_scale) & \
                (y <= -2.5*height_scale/width_scale * (x - 69*width_scale) + 35*height_scale) & \
@@ -59,7 +54,6 @@ def shape_M(x, y):
     return left_vertical | diagonal | bottom_horizontal | diagonal_2 | right_vertical
 
 def shape_6(x, y):
-    # Original: (97, 10) to (115, 38)
     center_x, center_y = 111*width_scale, 16.5*height_scale
     outer_circle = ((x - center_x)**2 + (y - center_y)**2 <= (11*width_scale)**2) & \
                    (95*width_scale <= x) & (x <= 122*width_scale) & (8*height_scale <= y) & (y <= 50*height_scale)
@@ -69,7 +63,6 @@ def shape_6(x, y):
     return outer_circle & ~inner_circle | vertical_line 
 
 def shape_1(x, y):
-    # Original: (143, 10) to (148, 38)
     vertical_line = (158*width_scale <= x) & (x <= 163*width_scale) & (10*height_scale <= y) & (y <= 38*height_scale)
     return vertical_line
 
@@ -77,46 +70,39 @@ def shape_1(x, y):
 def all_shapes(x, y):
     return shape_E(x, y) | shape_N(x, y) | shape_P(x, y) | shape_M(x, y) | shape_6(x, y) | shape_6(x-25*width_scale, y) | shape_1(x, y)
 
-# Resolution: mm_to_pixels = pixels per millimeter (lower = faster but coarser)
-mm_to_pixels = 2  # Adjust as needed (e.g., 5 for high-res, 1 for low-res)
+# Create obstacle map
+mm_to_pixels = 2
 width_pixels = int(map_width * mm_to_pixels)
 height_pixels = int(map_height * mm_to_pixels)
 
-# Generate coordinates (vectorized)
-x_mm = np.arange(width_pixels) / mm_to_pixels  # X-axis in mm
-y_mm = (height_pixels - 1 - np.arange(height_pixels)) / mm_to_pixels  # Y-axis flipped (origin at bottom-left)
+x_mm = np.arange(width_pixels) / mm_to_pixels
+y_mm = (height_pixels - 1 - np.arange(height_pixels)) / mm_to_pixels
 X_mm, Y_mm = np.meshgrid(x_mm, y_mm)
 
-# Create obstacle mask
 obstacle_mask = all_shapes(X_mm, Y_mm)
-
-# Initialize image (white background)
 image = np.ones((height_pixels, width_pixels, 3), dtype=np.uint8) * 255
-image[obstacle_mask] = 0  # Black for obstacles
+image[obstacle_mask] = 0
 
-# Add clearance (5mm dilation)
 clearance_pixels = int(5 * mm_to_pixels)
 kernel = np.ones((clearance_pixels, clearance_pixels), np.uint8)
 dilated = cv2.dilate(image[:, :, 0], kernel, iterations=1)
-image[dilated == 0] = 0  # Expand obstacles
+image[dilated == 0] = 0
 
-# Display
-cv2.imshow('Obstacle Map (White=Free, Black=Obstacle)', image)
+cv2.imshow('Obstacle Map', image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+# Get step input
 while True:
     try:
-        step_input = int(input("Enter a length for step input between 1-10: "))
+        step_input = int(input("Enter step size (1-10): "))
         if 1 <= step_input <= 10:
-            print("Valid Input, Proceeding ...")
             break
-        else:
-            print("Invalid Input, please enter a step input size between 1-10")
+        print("Invalid input, try again")
     except ValueError:
-        print("Please enter a valid integer between 1-10")
+        print("Please enter a number")
 
-# Define Action set
+# Action definitions
 def turn_0(node, step_input):
     theta_rad = math.radians(node[2])
     new_x = node[0] + step_input * math.cos(theta_rad)
@@ -153,19 +139,21 @@ def turn_N60(node, step_input):
 
 action_set = [turn_0, turn_30, turn_60, turn_N30, turn_N60]
 
-# A* Algorithm Implementation
+
+
+# A* Implementation with visited matrix
 class Node:
     def __init__(self, x, y, theta, parent=None):
         self.x = x
         self.y = y
         self.theta = theta
         self.parent = parent
-        self.g = 0  # Cost from start to current node
-        self.h = 0  # Heuristic cost from current to end node
-        self.f = 0  # Total cost (g + h)
+        self.g = 0
+        self.h = 0
+        self.f = 0
     
     def __eq__(self, other):
-        return (self.x == other.x and self.y == other.y)
+        return (self.x == other.x and self.y == other.y and self.theta == other.theta)
     
     def __lt__(self, other):
         return self.f < other.f
@@ -174,80 +162,122 @@ class Node:
         return hash((self.x, self.y, self.theta))
 
 def heuristic(node, goal):
-    # Euclidean distance
     return math.sqrt((node.x - goal.x)**2 + (node.y - goal.y)**2)
 
 def is_valid(node, obstacle_image, mm_to_pixels):
-    # Check if node is within bounds
     if (node.x < 0 or node.x >= map_width or node.y < 0 or node.y >= map_height):
         return False
     
-    # Check if node is in obstacle space
     x_pixel = int(node.x * mm_to_pixels)
-    y_pixel = height_pixels - 1 - int(node.y * mm_to_pixels)  # Flip y-coordinate
+    y_pixel = height_pixels - 1 - int(node.y * mm_to_pixels)
     
     if x_pixel < 0 or x_pixel >= width_pixels or y_pixel < 0 or y_pixel >= height_pixels:
         return False
     
-    # Check if pixel is black (obstacle)
     if obstacle_image[y_pixel, x_pixel, 0] == 0:
         return False
     
     return True
 
-def discretize_state(node, step_size=5, theta_step=30):
-    # Discretize the state space for visited checks
-    x = round(node.x / step_size) * step_size
-    y = round(node.y / step_size) * step_size
-    theta = round(node.theta / theta_step) * theta_step
-    return (x, y, theta)
+def get_visited_index(node):
+    # Calculate indices for the visited matrix (500x1200x12)
+    x_idx = int(round(node.x / 0.5))
+    y_idx = int(round(node.y / 0.5))
+    theta_idx = int(round(node.theta / 30)) % 12
+    
+    # Ensure indices are within bounds
+    x_idx = max(0, min(x_idx, 1199))  # 600/0.5 = 1200
+    y_idx = max(0, min(y_idx, 499))   # 250/0.5 = 500
+    theta_idx = theta_idx % 12        # 360/30 = 12
+    
+    return (x_idx, y_idx, theta_idx)
 
 def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
-    # Initialize open and closed lists
     open_list = []
-    closed_list = set()
+    # Initialize visited matrix (500x1200x12)
+    visited_matrix = np.zeros((500, 1200, 12), dtype=bool)
     
-    # Create start and goal nodes
     start_node = Node(start[0], start[1], start[2])
     goal_node = Node(goal[0], goal[1], goal[2])
-    
-    # Add start node to open list
     heapq.heappush(open_list, start_node)
     
-    # For visualization
+    # Mark start node as visited
+    start_idx = get_visited_index(start_node)
+    visited_matrix[start_idx[1], start_idx[0], start_idx[2]] = True
+    
     visited_nodes = []
+    explored_actions = []
+    action_colors = [
+        (0, 255, 0),  # 0°
+        (0, 255, 0),  # 30° 
+        (0, 255, 0),  # 60°
+        (0, 255, 0),  # -30°
+        (0, 255, 0)   # -60°
+    ]
     
-    # For video writer
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_out = cv2.VideoWriter('astar_path.mp4', fourcc, 120, (width_pixels, height_pixels))
-    
-    # Convert obstacle image to color for visualization
+    video_out = cv2.VideoWriter('astar_path.mp4', fourcc, 60, (width_pixels, height_pixels))
     vis_image = cv2.cvtColor(obstacle_image, cv2.COLOR_BGR2RGB)
+    arrow_scale = 0.5 + (step_input / 35)
     
     while open_list:
         current_node = heapq.heappop(open_list)
         visited_nodes.append(current_node)
         
-        # Write current state to video
         frame = vis_image.copy()
+        
+        # Draw explored actions
+        for action in explored_actions:
+            node, end_x, end_y, color_idx = action
+            x_pix = int(node.x * mm_to_pixels)
+            y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+            end_x_pix = int(end_x * mm_to_pixels)
+            end_y_pix = height_pixels - 1 - int(end_y * mm_to_pixels)
+            
+            if (0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels and
+                0 <= end_x_pix < width_pixels and 0 <= end_y_pix < height_pixels):
+                cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                              action_colors[color_idx], 1, tipLength=0.2)
         
         # Draw visited nodes
         for node in visited_nodes:
-            x_pixel = int(node.x * mm_to_pixels)
-            y_pixel = height_pixels - 1 - int(node.y * mm_to_pixels)
-            if 0 <= x_pixel < width_pixels and 0 <= y_pixel < height_pixels:
-                cv2.circle(frame, (x_pixel, y_pixel), 1, (255, 0, 0), -1)
+            x_pix = int(node.x * mm_to_pixels)
+            y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+            if 0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels:
+                overlay = frame.copy()
+                cv2.circle(overlay, (x_pix, y_pix), 2, (255, 0, 0), -1)
+                cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
         
         # Draw current node
-        x_pixel = int(current_node.x * mm_to_pixels)
-        y_pixel = height_pixels - 1 - int(current_node.y * mm_to_pixels)
-        if 0 <= x_pixel < width_pixels and 0 <= y_pixel < height_pixels:
-            cv2.circle(frame, (x_pixel, y_pixel), 3, (0, 255, 0), -1)
+        x_pix = int(current_node.x * mm_to_pixels)
+        y_pix = height_pixels - 1 - int(current_node.y * mm_to_pixels)
+        if 0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels:
+            cv2.circle(frame, (x_pix, y_pix), 4, (0, 255, 0), -1)
         
+        # Explore current actions
+        current_actions = []
+        for i, action in enumerate(action_set):
+            new_x, new_y, new_theta = action((current_node.x, current_node.y, current_node.theta), step_input)
+            vis_x = current_node.x + (new_x - current_node.x) * arrow_scale
+            vis_y = current_node.y + (new_y - current_node.y) * arrow_scale
+            
+            new_node = Node(new_x, new_y, new_theta)
+            if is_valid(new_node, obstacle_image, mm_to_pixels):
+                current_actions.append((current_node, vis_x, vis_y, i))
+                end_x_pix = int(vis_x * mm_to_pixels)
+                end_y_pix = height_pixels - 1 - int(vis_y * mm_to_pixels)
+                
+                if (0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels and
+                    0 <= end_x_pix < width_pixels and 0 <= end_y_pix < height_pixels):
+                    thickness = 2 if i == 0 else 1
+                    cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                                  action_colors[i], thickness, tipLength=0.3)
+        
+        explored_actions.extend(current_actions)
         video_out.write(frame)
         
-        # Check if we've reached the goal
-        if math.sqrt((current_node.x - goal_node.x)**2 + (current_node.y - goal_node.y)**2) < 5:  # 5mm tolerance
+        # Check for goal
+        if math.sqrt((current_node.x - goal_node.x)**2 + (current_node.y - goal_node.y)**2) < 5:
             print("Goal reached!")
             path = []
             current = current_node
@@ -255,27 +285,37 @@ def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
                 path.append((current.x, current.y, current.theta))
                 current = current.parent
             
-            # Write the final path to video
+            # Draw final path
             path.reverse()
             for i in range(len(path)-1):
                 frame = vis_image.copy()
                 
-                # Draw visited nodes
+                # Draw exploration
+                for action in explored_actions:
+                    node, end_x, end_y, color_idx = action
+                    x_pix = int(node.x * mm_to_pixels)
+                    y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+                    end_x_pix = int(end_x * mm_to_pixels)
+                    end_y_pix = height_pixels - 1 - int(end_y * mm_to_pixels)
+                    cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                                  action_colors[color_idx], 1, tipLength=0.2)
+                
                 for node in visited_nodes:
-                    x_pixel = int(node.x * mm_to_pixels)
-                    y_pixel = height_pixels - 1 - int(node.y * mm_to_pixels)
-                    if 0 <= x_pixel < width_pixels and 0 <= y_pixel < height_pixels:
-                        cv2.circle(frame, (x_pixel, y_pixel), 1, (255, 0, 0), -1)
+                    x_pix = int(node.x * mm_to_pixels)
+                    y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+                    overlay = frame.copy()
+                    cv2.circle(overlay, (x_pix, y_pix), 2, (255, 0, 0), -1)
+                    cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
                 
                 # Draw path
                 for j in range(i+1):
-                    x1_pixel = int(path[j][0] * mm_to_pixels)
-                    y1_pixel = height_pixels - 1 - int(path[j][1] * mm_to_pixels)
-                    x2_pixel = int(path[j+1][0] * mm_to_pixels)
-                    y2_pixel = height_pixels - 1 - int(path[j+1][1] * mm_to_pixels)
-                    if (0 <= x1_pixel < width_pixels and 0 <= y1_pixel < height_pixels and 
-                        0 <= x2_pixel < width_pixels and 0 <= y2_pixel < height_pixels):
-                        cv2.line(frame, (x1_pixel, y1_pixel), (x2_pixel, y2_pixel), (0, 0, 255), 2)
+                    x1 = int(path[j][0] * mm_to_pixels)
+                    y1 = height_pixels - 1 - int(path[j][1] * mm_to_pixels)
+                    x2 = int(path[j+1][0] * mm_to_pixels)
+                    y2 = height_pixels - 1 - int(path[j+1][1] * mm_to_pixels)
+                    if (0 <= x1 < width_pixels and 0 <= y1 < height_pixels and 
+                        0 <= x2 < width_pixels and 0 <= y2 < height_pixels):
+                        cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                 
                 video_out.write(frame)
             
@@ -287,23 +327,224 @@ def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
         for action in action_set:
             new_x, new_y, new_theta = action((current_node.x, current_node.y, current_node.theta), step_input)
             new_node = Node(new_x, new_y, new_theta, current_node)
-            
-            # Check if valid
             if is_valid(new_node, obstacle_image, mm_to_pixels):
                 children.append(new_node)
         
         for child in children:
-            # Check if child is in closed list (using discretized state)
-            disc_state = discretize_state(child)
-            if disc_state in closed_list:
+            # Get visited matrix indices for this child
+            x_idx, y_idx, theta_idx = get_visited_index(child)
+            
+            # Skip if already visited
+            if visited_matrix[y_idx, x_idx, theta_idx]:
                 continue
             
-            # Calculate costs
             child.g = current_node.g + step_input
             child.h = heuristic(child, goal_node)
             child.f = child.g + child.h
             
-            # Check if child is already in open list and has higher cost
+            # Check if this node is already in open list with lower cost
+            in_open = False
+            for open_node in open_list:
+                open_x_idx, open_y_idx, open_theta_idx = get_visited_index(open_node)
+                if (open_x_idx == x_idx and open_y_idx == y_idx and open_theta_idx == theta_idx):
+                    if child.g >= open_node.g:
+                        in_open = True
+                        break
+            
+            if not in_open:
+                heapq.heappush(open_list, child)
+                # Mark as visited
+                visited_matrix[y_idx, x_idx, theta_idx] = True
+    
+    video_out.release()
+    print("No path found!")
+    return None
+
+# A* Implementation
+class Node:
+    def __init__(self, x, y, theta, parent=None):
+        self.x = x
+        self.y = y
+        self.theta = theta
+        self.parent = parent
+        self.g = 0
+        self.h = 0
+        self.f = 0
+    
+    def __eq__(self, other):
+        return (self.x == other.x and self.y == other.y)
+    
+    def __lt__(self, other):
+        return self.f < other.f
+    
+    def __hash__(self):
+        return hash((self.x, self.y, self.theta))
+
+def heuristic(node, goal):
+    return math.sqrt((node.x - goal.x)**2 + (node.y - goal.y)**2)
+
+def is_valid(node, obstacle_image, mm_to_pixels):
+    if (node.x < 0 or node.x >= map_width or node.y < 0 or node.y >= map_height):
+        return False
+    
+    x_pixel = int(node.x * mm_to_pixels)
+    y_pixel = height_pixels - 1 - int(node.y * mm_to_pixels)
+    
+    if x_pixel < 0 or x_pixel >= width_pixels or y_pixel < 0 or y_pixel >= height_pixels:
+        return False
+    
+    if obstacle_image[y_pixel, x_pixel, 0] == 0:
+        return False
+    
+    return True
+
+def discretize_state(node, step_size=5, theta_step=30):
+    x = round(node.x / step_size) * step_size
+    y = round(node.y / step_size) * step_size
+    theta = round(node.theta / theta_step) * theta_step
+    return (x, y, theta)
+
+def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
+    open_list = []
+    closed_list = set()
+    start_node = Node(start[0], start[1], start[2])
+    goal_node = Node(goal[0], goal[1], goal[2])
+    heapq.heappush(open_list, start_node)
+    
+    visited_nodes = []
+    explored_actions = []
+    action_colors = [
+        (0, 255, 0),  # 0°
+        (0, 255, 0),  # 30° 
+        (0, 255, 0),  # 60°
+        (0, 255, 0),  # -30°
+        (0, 255, 0)   # -60°
+    ]
+    
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    video_out = cv2.VideoWriter('astar_path.mp4', fourcc, 60, (width_pixels, height_pixels))
+    vis_image = cv2.cvtColor(obstacle_image, cv2.COLOR_BGR2RGB)
+    arrow_scale = 0.5 + (step_input / 30)
+    
+    while open_list:
+        current_node = heapq.heappop(open_list)
+        visited_nodes.append(current_node)
+        
+        frame = vis_image.copy()
+        
+        # Draw explored actions
+        for action in explored_actions:
+            node, end_x, end_y, color_idx = action
+            x_pix = int(node.x * mm_to_pixels)
+            y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+            end_x_pix = int(end_x * mm_to_pixels)
+            end_y_pix = height_pixels - 1 - int(end_y * mm_to_pixels)
+            
+            if (0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels and
+                0 <= end_x_pix < width_pixels and 0 <= end_y_pix < height_pixels):
+                cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                              action_colors[color_idx], 1, tipLength=0.2)
+        
+        # Draw visited nodes
+        for node in visited_nodes:
+            x_pix = int(node.x * mm_to_pixels)
+            y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+            if 0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels:
+                overlay = frame.copy()
+                cv2.circle(overlay, (x_pix, y_pix), 2, (255, 0, 0), -1)
+                cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+        
+        # Draw current node
+        x_pix = int(current_node.x * mm_to_pixels)
+        y_pix = height_pixels - 1 - int(current_node.y * mm_to_pixels)
+        if 0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels:
+            cv2.circle(frame, (x_pix, y_pix), 4, (0, 255, 0), -1)
+        
+        # Explore current actions
+        current_actions = []
+        for i, action in enumerate(action_set):
+            new_x, new_y, new_theta = action((current_node.x, current_node.y, current_node.theta), step_input)
+            vis_x = current_node.x + (new_x - current_node.x) * arrow_scale
+            vis_y = current_node.y + (new_y - current_node.y) * arrow_scale
+            
+            new_node = Node(new_x, new_y, new_theta)
+            if is_valid(new_node, obstacle_image, mm_to_pixels):
+                current_actions.append((current_node, vis_x, vis_y, i))
+                end_x_pix = int(vis_x * mm_to_pixels)
+                end_y_pix = height_pixels - 1 - int(vis_y * mm_to_pixels)
+                
+                if (0 <= x_pix < width_pixels and 0 <= y_pix < height_pixels and
+                    0 <= end_x_pix < width_pixels and 0 <= end_y_pix < height_pixels):
+                    thickness = 2 if i == 0 else 1
+                    cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                                  action_colors[i], thickness, tipLength=0.3)
+        
+        explored_actions.extend(current_actions)
+        video_out.write(frame)
+        
+        # Check for goal
+        if math.sqrt((current_node.x - goal_node.x)**2 + (current_node.y - goal_node.y)**2) < 5:
+            print("Goal reached!")
+            path = []
+            current = current_node
+            while current is not None:
+                path.append((current.x, current.y, current.theta))
+                current = current.parent
+            
+            # Draw final path
+            path.reverse()
+            for i in range(len(path)-1):
+                frame = vis_image.copy()
+                
+                # Draw exploration
+                for action in explored_actions:
+                    node, end_x, end_y, color_idx = action
+                    x_pix = int(node.x * mm_to_pixels)
+                    y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+                    end_x_pix = int(end_x * mm_to_pixels)
+                    end_y_pix = height_pixels - 1 - int(end_y * mm_to_pixels)
+                    cv2.arrowedLine(frame, (x_pix, y_pix), (end_x_pix, end_y_pix),
+                                  action_colors[color_idx], 1, tipLength=0.2)
+                
+                for node in visited_nodes:
+                    x_pix = int(node.x * mm_to_pixels)
+                    y_pix = height_pixels - 1 - int(node.y * mm_to_pixels)
+                    overlay = frame.copy()
+                    cv2.circle(overlay, (x_pix, y_pix), 2, (255, 0, 0), -1)
+                    cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+                
+                # Draw path
+                for j in range(i+1):
+                    x1 = int(path[j][0] * mm_to_pixels)
+                    y1 = height_pixels - 1 - int(path[j][1] * mm_to_pixels)
+                    x2 = int(path[j+1][0] * mm_to_pixels)
+                    y2 = height_pixels - 1 - int(path[j+1][1] * mm_to_pixels)
+                    if (0 <= x1 < width_pixels and 0 <= y1 < height_pixels and 
+                        0 <= x2 < width_pixels and 0 <= y2 < height_pixels):
+                        cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                
+                video_out.write(frame)
+            
+            video_out.release()
+            return path
+        
+        # Generate children
+        children = []
+        for action in action_set:
+            new_x, new_y, new_theta = action((current_node.x, current_node.y, current_node.theta), step_input)
+            new_node = Node(new_x, new_y, new_theta, current_node)
+            if is_valid(new_node, obstacle_image, mm_to_pixels):
+                children.append(new_node)
+        
+        for child in children:
+            disc_state = discretize_state(child)
+            if disc_state in closed_list:
+                continue
+            
+            child.g = current_node.g + step_input
+            child.h = heuristic(child, goal_node)
+            child.f = child.g + child.h
+            
             in_open = False
             for open_node in open_list:
                 if discretize_state(open_node) == disc_state and child.g >= open_node.g:
@@ -313,14 +554,13 @@ def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
             if not in_open:
                 heapq.heappush(open_list, child)
         
-        # Add current node to closed list (using discretized state)
         closed_list.add(discretize_state(current_node))
     
     video_out.release()
     print("No path found!")
     return None
 
-# Get start and goal positions from user
+# Get start and goal positions
 print("Enter start position (x, y, theta):")
 start_x = float(input("x (0-600): "))
 start_y = float(input("y (0-250): "))
@@ -331,39 +571,34 @@ goal_x = float(input("x (0-600): "))
 goal_y = float(input("y (0-250): "))
 
 start = (start_x, start_y, start_theta)
-goal = (goal_x, goal_y, 0)  # Goal orientation doesn't matter
+goal = (goal_x, goal_y, 0)
 
 # Run A* algorithm
+print("Solving...")
 path = a_star(start, goal, image, action_set, step_input, mm_to_pixels)
-print("Solving....")
 
+# Visualize final result
 if path:
-    print("Path found with", len(path), "steps!")
-    
-    # Visualize final path
+    print(f"Path found with {len(path)} steps!")
     final_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-    # Draw visited nodes (for visualization)
-    # Note: In a real implementation, we'd need to keep track of all visited nodes
     
     # Draw path
     for i in range(len(path)-1):
-        x1_pixel = int(path[i][0] * mm_to_pixels)
-        y1_pixel = height_pixels - 1 - int(path[i][1] * mm_to_pixels)
-        x2_pixel = int(path[i+1][0] * mm_to_pixels)
-        y2_pixel = height_pixels - 1 - int(path[i+1][1] * mm_to_pixels)
-        cv2.line(final_image, (x1_pixel, y1_pixel), (x2_pixel, y2_pixel), (0, 0, 255), 2)
+        x1 = int(path[i][0] * mm_to_pixels)
+        y1 = height_pixels - 1 - int(path[i][1] * mm_to_pixels)
+        x2 = int(path[i+1][0] * mm_to_pixels)
+        y2 = height_pixels - 1 - int(path[i+1][1] * mm_to_pixels)
+        cv2.line(final_image, (x1, y1), (x2, y2), (0, 0, 255), 2)
     
-    # Draw start and goal
-    start_pixel = (int(start[0] * mm_to_pixels), height_pixels - 1 - int(start[1] * mm_to_pixels))
-    goal_pixel = (int(goal[0] * mm_to_pixels), height_pixels - 1 - int(goal[1] * mm_to_pixels))
-    cv2.circle(final_image, start_pixel, 5, (0, 255, 0), -1)
-    cv2.circle(final_image, goal_pixel, 5, (0, 0, 255), -1)
+    # Mark start and goal
+    start_pt = (int(start[0] * mm_to_pixels), height_pixels - 1 - int(start[1] * mm_to_pixels))
+    goal_pt = (int(goal[0] * mm_to_pixels), height_pixels - 1 - int(goal[1] * mm_to_pixels))
+    cv2.circle(final_image, start_pt, 5, (0, 255, 0), -1)
+    cv2.circle(final_image, goal_pt, 5, (0, 0, 255), -1)
     
     cv2.imshow('Final Path', final_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-    
     print("Animation saved as 'astar_path.mp4'")
 else:
     print("No path found!")
