@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+import cv2
+from collections import deque
 
 # Define the new map dimensions
 map_height = 250
@@ -71,14 +74,30 @@ def shape_1(x, y):
 def all_shapes(x, y):
     return shape_E(x, y) | shape_N(x, y) | shape_P(x, y) | shape_M(x, y) | shape_6(x, y) | shape_6(x-25*width_scale, y) | shape_1(x, y)
 
-# Evaluate the shapes on the grid
-Z = all_shapes(X, Y)
+# Resolution: mm_to_pixels = pixels per millimeter (lower = faster but coarser)
+mm_to_pixels = 2  # Adjust as needed (e.g., 5 for high-res, 1 for low-res)
+width_pixels = int(map_width * mm_to_pixels)
+height_pixels = int(map_height * mm_to_pixels)
 
-# Plot the shapes
-plt.figure(figsize=(18, 8))  # Adjusted figure size for new dimensions
-plt.imshow(Z, extent=(0, map_width, 0, map_height), origin='lower', cmap='binary', alpha=0.8)
-plt.title("Scaled Map with Obstacles")
-plt.xlabel("X (mm)")
-plt.ylabel("Y (mm)")
-plt.grid(True, which='both', color='gray', linestyle='--', linewidth=0.5)
-plt.show()
+# Generate coordinates (vectorized)
+x_mm = np.arange(width_pixels) / mm_to_pixels  # X-axis in mm
+y_mm = (height_pixels - 1 - np.arange(height_pixels)) / mm_to_pixels  # Y-axis flipped (origin at bottom-left)
+X_mm, Y_mm = np.meshgrid(x_mm, y_mm)
+
+# Create obstacle mask
+obstacle_mask = all_shapes(X_mm, Y_mm)
+
+# Initialize image (white background)
+image = np.ones((height_pixels, width_pixels, 3), dtype=np.uint8) * 255
+image[obstacle_mask] = 0  # Black for obstacles
+
+# Add clearance (5mm dilation)
+clearance_pixels = int(5 * mm_to_pixels)
+kernel = np.ones((clearance_pixels, clearance_pixels), np.uint8)
+dilated = cv2.dilate(image[:, :, 0], kernel, iterations=1)
+image[dilated == 0] = 0  # Expand obstacles
+
+# Display
+cv2.imshow('Obstacle Map (White=Free, Black=Obstacle)', image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
