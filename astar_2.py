@@ -9,10 +9,10 @@ def heuristics(a, b):
     return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 # Action set: directions based on 30° increments, corresponding to angles
-angles = [0, 30, 60, 90, 120, 150]
+angles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
 
 # Constant step size
-STEP_SIZE = 10  # You can change this value as needed
+STEP_SIZE = 5  # You can change this value as needed
 
 # Convert angle to x, y movement direction
 def angle_to_direction(angle, step_size):
