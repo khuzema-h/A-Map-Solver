@@ -52,4 +52,5 @@ Animation saved as 'astar_path.mp4'
 
 ## Animation of Path Finding
 
+![image](https://github.com/user-attachments/assets/2c1449ce-5c25-4c33-ace1-319a24bcf316)
 
