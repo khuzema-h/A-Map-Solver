@@ -25,6 +25,12 @@ Ensure the Following Dependencies are installed on your system:
 - Matplotlib
 - Numpy
 
+## User Inputs:
+- Step size, Must be within 1-10
+- Start Position for x, y, theta, must be within range
+- Goal Position for x, y, theta, must be within range
+- Do not input float or character values for any inputs
+
 ## Code Output
 
 ```
