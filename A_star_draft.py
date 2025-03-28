@@ -68,7 +68,7 @@ def shape_1(x, y):
 
 # Combine all shapes
 def all_shapes(x, y):
-    return shape_E(x, y) | shape_N(x, y) | shape_P(x, y) | shape_M(x, y) | shape_6(x, y) | shape_6(x-25*width_scale, y) | shape_1(x, y)
+    return shape_E(x, y) | shape_N(x, y) | shape_P(x, y) | shape_M(x-2*width_scale, y) | shape_6(x, y) | shape_6(x-30*width_scale, y) | shape_1(x, y)
 
 # Create obstacle map
 mm_to_pixels = 2
