@@ -2,6 +2,7 @@
 
 # Project Members: Adil Qureshi (122060975) - Khuzema Habib (121288776) - Sounderya Venugopal (121272423)
 
+# Github Link: https://github.com/khuzema-h/A-Star-Map-Solver
 ---
 
 This project implements a pathfinding algorithm using A* algorithm in a 2D environment with obstacles. The environment is represented as an image where obstacles are marked in black and free space is white.
