@@ -134,7 +134,10 @@ while True:
         print("Invalid input, try again")
     except ValueError:
         print("Please enter a number")
+if step_input == 1:
+ step_input +=1
 
+ 
 # Action definitions
 def turn_0(node, step_input):
     theta_rad = math.radians(node[2])
@@ -375,18 +378,60 @@ def a_star(start, goal, obstacle_image, action_set, step_input, mm_to_pixels):
     print("No path found!")
     return None
 
-# Get start and goal positions
-print("Enter start position (x, y, theta):")
-start_x = float(input("x (0-600): "))
-start_y = float(input("y (0-250): "))
-start_theta = float(input("theta (0-360): "))
 
-print("Enter goal position (x, y):")
-goal_x = float(input("x (0-600): "))
-goal_y = float(input("y (0-250): "))
+while True:
+    start_x = int(input("\nEnter the x-coordinate(6-594) of your start point: "))
+    start_y = int(input("Enter the y-coordinate(6-244) of your start point: "))
+    start_theta = int(input("Enter the orientation(theta)(0-360) of your start point: "))
+
+    if not (5 < start_x < 595 and 5 < start_y < 245 and 0 <= start_theta <= 360):
+        print("Your values are not within the image boundaries. Please re-enter the start coordinates.")
+        continue
+
+    # Convert to pixel coordinates and invert y-axis
+    x_pixel = int(start_x * mm_to_pixels)
+    y_pixel = height_pixels - 1 - int(start_y * mm_to_pixels)
+
+    # Check if the point is valid (not black or red)
+    if (x_pixel < 0 or x_pixel >= width_pixels or y_pixel < 0 or y_pixel >= height_pixels):
+        print("Invalid coordinates. Please re-enter.")
+        continue
+
+    if (np.array_equal(planning_image[y_pixel, x_pixel], [0, 0, 0]) or 
+        np.array_equal(planning_image[y_pixel, x_pixel], [0, 0, 255])):
+        print("Your start is on an obstacle or clearance area. Please re-enter the start coordinates.")
+    else:
+        print("Your start coordinates are correct. Search in progress PLEASE WAIT...")
+        break
+    
+while True:
+    goal_x = int(input("\nEnter the x-coordinate(6-594) of your goal point: "))
+    goal_y = int(input("Enter the y-coordinate(6-244) of your goal point: "))
+    goal_theta = int(input("Enter the orientation(theta)(0-360) of your start point: "))
+
+    if not (5 < goal_x < 595 and 5 < goal_y < 245 and 0 <= goal_theta <= 360):
+        print("Your values are not within the image boundaries. Please re-enter the goal coordinates.")
+        continue
+
+    # Convert to pixel coordinates and invert y-axis
+    x_pixel = int(goal_x * mm_to_pixels)
+    y_pixel = height_pixels - 1 - int(goal_y * mm_to_pixels)
+
+    # Check if the point is valid (not black or red)
+    if (x_pixel < 0 or x_pixel >= width_pixels or y_pixel < 0 or y_pixel >= height_pixels):
+        print("Invalid coordinates. Please re-enter.")
+        continue
+
+    if (np.array_equal(planning_image[y_pixel, x_pixel], [0, 0, 0]) or 
+        np.array_equal(planning_image[y_pixel, x_pixel], [0, 0, 255])):
+        print("Your goal is on an obstacle or clearance area. Please re-enter the goal coordinates.")
+    else:
+        print("Your goal coordinates are correct. Search in progress PLEASE WAIT...")
+        break
+
 
 start = (start_x, start_y, start_theta)
-goal = (goal_x, goal_y, 0)
+goal = (goal_x, goal_y, goal_theta)
 
 # Run A* algorithm
 print("Solving...")
