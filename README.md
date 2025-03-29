@@ -1,4 +1,7 @@
 # ENPM661 Project 3 Phase 1: Implementation of the A* Algorithm for a Point Robot
+
+# Project Members: Adil Qureshi (122060975) - Khuzema Habib (121288776) - Sounderya Venugopal (121272423)
+
 ---
 
 This project implements a pathfinding algorithm using A* algorithm in a 2D environment with obstacles. The environment is represented as an image where obstacles are marked in black and free space is white.
@@ -24,6 +27,10 @@ Ensure the Following Dependencies are installed on your system:
 - Opencv
 - Matplotlib
 - Numpy
+
+Running the main file 
+
+$ python3 a_star_adil_khuzema_sounderya.py
 
 ## User Inputs:
 - Step size, Must be within 1-10
