@@ -35,16 +35,15 @@ Ensure the Following Dependencies are installed on your system:
 
 ```
 Enter step size (1-10): 10
-Enter start position (x, y, theta):
-x (0-600): 5
-y (0-250): 5
-theta (0-360): 0
-Enter goal position (x, y):
-x (0-600): 100
-y (0-250): 10
+Enter the orientation(theta)(0-360) of your start point: 30
+x start(6-594): 10
+y start(6-244): 10
+theta (0-360): 30
+Enter the orientation(theta)(0-360) of your start point: 30
+x goal(6-594): 400
+y goal(6-244): 200
 Solving...
 Goal reached!
-Path found with 11 steps!
 Animation saved as 'astar_path.mp4'
 ```
 ## Final Path Preview
