@@ -32,6 +32,7 @@ Running the main file
 
 ```bash
 python3 a_star_adil_khuzema_sounderya.py
+```
 
 ## User Inputs:
 - Step size, Must be within 1-10
