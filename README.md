@@ -30,7 +30,8 @@ Ensure the Following Dependencies are installed on your system:
 
 Running the main file 
 
-$ python3 a_star_adil_khuzema_sounderya.py
+```bash
+python3 a_star_adil_khuzema_sounderya.py
 
 ## User Inputs:
 - Step size, Must be within 1-10
